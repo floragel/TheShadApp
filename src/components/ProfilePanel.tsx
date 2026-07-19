@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from
 import { Check, LogOut, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { supabase } from '../lib/supabase'
-import type { Profile, Team, TeamMembership } from '../types/database'
+import type { AccountRole, Profile, Team, TeamMembership } from '../types/database'
 
 interface ProfilePanelProps { onClose: () => void }
 
@@ -11,6 +11,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
   const [memberships, setMemberships] = useState<TeamMembership[]>([])
+  const [role, setRole] = useState<AccountRole>('shad')
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [message, setMessage] = useState('')
@@ -22,7 +23,8 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('teams').select('*').order('kind').order('name'),
       supabase.from('team_memberships').select('user_id, team_id, team_kind, team:teams(*)').eq('user_id', user.id),
-    ]).then(([profileResult, teamsResult, membershipsResult]) => {
+      supabase.from('user_roles').select('role').eq('user_id', user.id).single(),
+    ]).then(([profileResult, teamsResult, membershipsResult, roleResult]) => {
       if (profileResult.data) {
         const nextProfile = profileResult.data as Profile
         setProfile(nextProfile)
@@ -31,6 +33,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
       }
       if (teamsResult.data) setTeams(teamsResult.data as Team[])
       if (membershipsResult.data) setMemberships(membershipsResult.data as unknown as TeamMembership[])
+      if (roleResult.data) setRole(roleResult.data.role as AccountRole)
       setLoading(false)
     })
   }, [user])
@@ -71,7 +74,8 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
         <div className="panel-header"><div><p className="eyebrow">Your account</p><h2>Profile & teams</h2></div><button className="icon-button" onClick={onClose} aria-label="Close profile"><X size={20} /></button></div>
         {loading ? <div className="profile-loading">Loading your profile…</div> : (
           <>
-            <div className="profile-identity"><div className="large-avatar">{(profile?.display_name || user?.email || '?').slice(0, 2).toUpperCase()}</div><div><strong>{profile?.display_name}</strong><span>{user?.email}</span></div><ShieldCheck size={21} aria-label="Verified account" /></div>
+            <div className="profile-identity"><div className="large-avatar">{(profile?.display_name || user?.email || '?').slice(0, 2).toUpperCase()}</div><div><strong>{profile?.display_name}</strong><span>{user?.email}</span><span className={`role-badge role-${role}`}>{role === 'shad' ? 'SHAD' : role.toUpperCase()}</span></div><ShieldCheck size={21} aria-label="Verified account" /></div>
+            <div className="privilege-note"><ShieldCheck size={17} /><div><strong>{role === 'shad' ? 'Participant account' : role === 'pa' ? 'PA account' : 'Leadership Team account'}</strong><span>{role === 'shad' ? 'Join your two teams and manage your profile.' : role === 'pa' ? 'Includes read access to participant and team rosters.' : 'Includes roster access and role-management privileges.'}</span></div></div>
             <form className="profile-form" onSubmit={saveProfile}>
               <label>Display name<input required minLength={2} maxLength={60} value={name} onChange={(event) => setName(event.target.value)} /></label>
               <label>About you<textarea maxLength={180} rows={3} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Interests, favourite activities…" /></label>

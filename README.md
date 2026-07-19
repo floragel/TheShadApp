@@ -26,11 +26,23 @@ Never put the Supabase service-role key in this repository or in any `VITE_` var
 The included schema provides:
 
 - Auth-linked participant profiles
-- House and design teams
+- 11 fixed house teams and 11 fixed design teams
 - A maximum of one house team and one design team per account
-- Policies that allow users to update only their own profile and memberships
+- `SHAD`, `PA`, and `LT` account roles
+- Policies that allow SHAD participants to access only their own private account data
+- Roster-reading privileges for PA and LT accounts
+- Role-management privileges for LT accounts, without allowing self-promotion
+- No browser permission to create, rename, or delete teams
 
-Replace the sample team names in `supabase/schema.sql` before running it if the official SHAD team names are available.
+For a database where the original schema was already installed, run `supabase/migrations/20260719_roles_and_teams.sql` once instead of rerunning the full schema. This replaces the prototype teams and resets existing team selections.
+
+All new accounts start as `SHAD`. To establish the first LT securely, use the Supabase SQL Editor with the account email:
+
+```sql
+update public.user_roles
+set role = 'lt'
+where user_id = (select id from auth.users where email = 'your-email@example.com');
+```
 
 ## GitHub Pages deployment
 

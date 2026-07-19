@@ -126,6 +126,13 @@ h2 { font-size: 30px; letter-spacing: -1.2px; }
 .profile-identity div:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
 .profile-identity span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; }
 .profile-identity > svg { color: #3da474; }
+.role-badge { justify-self: start; margin-top: 3px; padding: 3px 7px; border-radius: 999px; font-size: 9px !important; font-weight: 800; letter-spacing: .8px; }
+.role-shad { color: #5b3cb0 !important; background: #eee8ff; }
+.role-pa { color: #206548 !important; background: #daf3e6; }
+.role-lt { color: #8a4e16 !important; background: #ffebcc; }
+.privilege-note { display: flex; gap: 10px; padding: 12px; margin: -10px 0 20px; border-radius: 12px; color: #5f4b91; background: #f2edff; }
+.privilege-note div { display: grid; gap: 2px; }
+.privilege-note span { color: #746a84; font-size: 11px; line-height: 1.4; }
 .profile-form { padding-bottom: 25px; border-bottom: 1px solid var(--line); }
 .profile-form textarea { resize: vertical; font-family: inherit; }
 .save-button { justify-self: start; padding: 10px 15px; }

@@ -1,4 +1,5 @@
 export type TeamKind = 'house' | 'design'
+export type AccountRole = 'shad' | 'pa' | 'lt'
 
 export interface Team {
   id: string
@@ -20,4 +21,9 @@ export interface TeamMembership {
   team_id: string
   team_kind?: TeamKind
   team?: Team
+}
+
+export interface UserRole {
+  user_id: string
+  role: AccountRole
 }
