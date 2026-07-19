@@ -1,0 +1,43 @@
+import type { Activity } from '../types/activity'
+
+export const activities: Activity[] = [
+  {
+    id: 'volleyball',
+    title: 'Sunset volleyball',
+    description: 'Casual game — all skill levels welcome!',
+    category: 'Active',
+    emoji: '🏐',
+    time: '6:15–7:00 PM',
+    location: 'Residence courtyard',
+    host: 'Maya',
+    attendees: 7,
+    capacity: 10,
+    accent: '#f6c95f',
+  },
+  {
+    id: 'bubble-tea',
+    title: 'Bubble tea run',
+    description: 'Walking to Coco and back before evening programming.',
+    category: 'Food',
+    emoji: '🧋',
+    time: '6:00–6:50 PM',
+    location: 'Meet at main entrance',
+    host: 'Connor',
+    attendees: 3,
+    capacity: 6,
+    accent: '#f2a9ca',
+  },
+  {
+    id: 'cards',
+    title: 'Cards & conversation',
+    description: 'Uno, President, and a very questionable playlist.',
+    category: 'Chill',
+    emoji: '🃏',
+    time: 'Now–7:00 PM',
+    location: 'Fireside Lounge',
+    host: 'Anabia',
+    attendees: 5,
+    capacity: 8,
+    accent: '#91d7bd',
+  },
+]
