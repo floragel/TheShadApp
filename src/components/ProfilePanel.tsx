@@ -89,8 +89,16 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
               <div className="team-heading"><UsersRound size={18} /><div><strong>Design team</strong><span>Choose one</span></div></div>
               <div className="team-options">{teamGroup('design').map((team) => <button key={team.id} className={selectedByKind.get('design') === team.id ? 'selected' : ''} onClick={() => void selectTeam(team)} style={{ '--team-color': team.color } as CSSProperties}><span />{team.name}{selectedByKind.get('design') === team.id && <Check size={15} />}</button>)}</div>
             </div>
+            
+            <div className="qr-code-display">
+              <p className="eyebrow" style={{ margin: 0 }}>My Attendance QR</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 12px' }}>Show this to a PA or LT to check in to activities</p>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(user?.id || '')}`} alt="Check-in QR" width="160" height="160" />
+              <span style={{ fontSize: '10px', color: '#918b99', marginTop: '8px', fontFamily: 'monospace' }}>ID: {user?.id?.slice(0,8) || ''}...</span>
+            </div>
+
             {message && <p className="form-message" role="status">{message}</p>}
-            <button className="sign-out-button" onClick={() => void signOut()}><LogOut size={18} /> Sign out</button>
+            <button className="sign-out-button" onClick={() => void signOut()} style={{ marginTop: '16px' }}><LogOut size={18} /> Sign out</button>
           </>
         )}
       </aside>

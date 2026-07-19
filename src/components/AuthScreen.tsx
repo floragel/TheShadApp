@@ -40,9 +40,11 @@ export function AuthScreen() {
   return (
     <main className="auth-page">
       <section className="auth-story">
-        <a className="brand auth-brand" href="./" aria-label="LinkUp home">
-          <span className="brand-mark"><Sparkles size={20} /></span>
-          <span>link<span>up</span></span>
+        <a className="brand auth-brand" href="./" aria-label="ShadLoop home">
+          <span className="brand-mark" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logo.png" alt="S" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </span>
+          <span>shad<span>loop</span></span>
         </a>
         <div>
           <p className="overline"><span /> Built for SHAD</p>
@@ -62,7 +64,7 @@ export function AuthScreen() {
             <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => setMode('sign-up')}>Create account</button>
           </div>
           <div className="auth-title">
-            <p className="eyebrow">Welcome to LinkUp</p>
+            <p className="eyebrow">Welcome to ShadLoop</p>
             <h2>{mode === 'sign-in' ? 'Good to see you again' : 'Create your account'}</h2>
             <p>{mode === 'sign-in' ? 'Sign in to see what your cohort is planning.' : 'Use an email you can access for verification.'}</p>
           </div>
@@ -83,7 +85,7 @@ export function AuthScreen() {
               <button className="auth-submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}<ArrowRight size={18} /></button>
             </form>
           )}
-          <p className="security-note"><LockKeyhole size={14} /><span>Passwords are handled by Supabase Auth and never stored by LinkUp.</span></p>
+          <p className="security-note"><LockKeyhole size={14} /><span>Passwords are handled by Supabase Auth and never stored by ShadLoop.</span></p>
         </div>
       </section>
     </main>

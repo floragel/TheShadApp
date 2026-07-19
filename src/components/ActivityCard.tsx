@@ -4,11 +4,13 @@ import type { Activity } from '../types/activity'
 interface ActivityCardProps {
   activity: Activity
   joined: boolean
+  waiting?: boolean
   onJoin: (id: string) => void
 }
 
-export function ActivityCard({ activity, joined, onJoin }: ActivityCardProps) {
+export function ActivityCard({ activity, joined, waiting = false, onJoin }: ActivityCardProps) {
   const attendeeCount = activity.attendees + (joined ? 1 : 0)
+  const isFull = activity.attendees >= activity.capacity
 
   return (
     <article className="activity-card">
@@ -27,9 +29,15 @@ export function ActivityCard({ activity, joined, onJoin }: ActivityCardProps) {
           <span><MapPin size={15} />{activity.location}</span>
         </div>
         <div className="card-footer">
-          <span className="capacity"><Users size={17} /> {attendeeCount}/{activity.capacity} joined</span>
-          <button className={joined ? 'join-button joined' : 'join-button'} onClick={() => onJoin(activity.id)}>
-            {joined ? 'Joined ✓' : 'Join activity'}
+          <div style={{ display: 'grid', gap: '4px' }}>
+            <span className="capacity"><Users size={17} /> {attendeeCount}/{activity.capacity} joined</span>
+            {waiting && <span className="waitlist-badge">Waiting list</span>}
+          </div>
+          <button 
+            className={joined ? 'join-button joined' : waiting ? 'join-button waiting' : 'join-button'} 
+            onClick={() => onJoin(activity.id)}
+          >
+            {joined ? 'Joined ✓' : waiting ? 'Leave Waitlist' : isFull ? 'Join Waitlist' : 'Join activity'}
           </button>
         </div>
       </div>
