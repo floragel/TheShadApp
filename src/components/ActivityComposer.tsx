@@ -43,11 +43,14 @@ export function ActivityComposer({ userId, onClose, onSaved }: { userId:string; 
     }).select('id').single()
 
     if (!error && newAct) {
-      await supabase.from('activity_members').insert({ activity_id: newAct.id, user_id: userId })
+      const { error: joinErr } = await supabase.from('activity_members').insert({ activity_id: newAct.id, user_id: userId })
+      if (joinErr) console.error('Auto-join failed:', joinErr)
+      else console.log('Auto-joined activity:', newAct.id)
     }
 
     setMessage(error?.message ?? 'Activity created.')
     if (!error) {
+      await new Promise(r => setTimeout(r, 400)) // Wait for DB to commit
       onSaved()
       onClose()
     }
