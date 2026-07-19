@@ -65,6 +65,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
     setMessage(error ? error.message : 'Profile saved.')
     if (data) setProfile(data as Profile)
   }
+  const uploadAvatar=async(file:File)=>{if(!supabase||!user)return;setMessage('Uploading photo…');const ext=file.name.split('.').pop()||'jpg';const path=`${user.id}/avatar.${ext}`;const {error}=await supabase.storage.from('avatars').upload(path,file,{upsert:true});if(error){setMessage(error.message);return}const {data}=supabase.storage.from('avatars').getPublicUrl(path);const url=`${data.publicUrl}?v=${Date.now()}`;const result=await supabase.from('profiles').update({avatar_url:url}).eq('id',user.id);setProfile(p=>p?{...p,avatar_url:url}:p);setMessage(result.error?.message??'Photo updated.')}
 
   const teamGroup = (kind: 'house' | 'design') => teams.filter((team) => team.kind === kind)
 
@@ -74,9 +75,10 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
         <div className="panel-header"><div><p className="eyebrow">Your account</p><h2>Profile & teams</h2></div><button className="icon-button" onClick={onClose} aria-label="Close profile"><X size={20} /></button></div>
         {loading ? <div className="profile-loading">Loading your profile…</div> : (
           <>
-            <div className="profile-identity"><div className="large-avatar">{(profile?.display_name || user?.email || '?').slice(0, 2).toUpperCase()}</div><div><strong>{profile?.display_name}</strong><span>{user?.email}</span><span className={`role-badge role-${role}`}>{role === 'shad' ? 'SHAD' : role.toUpperCase()}</span></div><ShieldCheck size={21} aria-label="Verified account" /></div>
+            <div className="profile-identity"><div className="large-avatar">{profile?.avatar_url?<img src={profile.avatar_url} alt="Profile"/>:(profile?.display_name || user?.email || '?').slice(0, 2).toUpperCase()}</div><div><strong>{profile?.display_name}</strong><span>{user?.email}</span><span className={`role-badge role-${role}`}>{role === 'shad' ? 'SHAD' : role.toUpperCase()}</span></div><ShieldCheck size={21} aria-label="Verified account" /></div>
             <div className="privilege-note"><ShieldCheck size={17} /><div><strong>{role === 'shad' ? 'Participant account' : role === 'pa' ? 'PA account' : 'Leadership Team account'}</strong><span>{role === 'shad' ? 'Join your two teams and manage your profile.' : role === 'pa' ? 'Includes read access to participant and team rosters.' : 'Includes roster access and role-management privileges.'}</span></div></div>
             <form className="profile-form" onSubmit={saveProfile}>
+              <label>Profile photo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>e.target.files?.[0]&&void uploadAvatar(e.target.files[0])}/></label>
               <label>Display name<input required minLength={2} maxLength={60} value={name} onChange={(event) => setName(event.target.value)} /></label>
               <label>About you<textarea maxLength={180} rows={3} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Interests, favourite activities…" /></label>
               <button className="save-button">Save profile</button>

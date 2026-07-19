@@ -12,4 +12,5 @@ export interface Activity {
   attendees: number
   capacity: number
   accent: string
+  teamId?: string | null
 }
