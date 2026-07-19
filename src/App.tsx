@@ -83,19 +83,28 @@ export default function App() {
       supabase.from('team_memberships').select('team_id').eq('user_id', user.id)
     ])
 
-    // Fetch all activities the user is a member of OR created (no date filter — two reliable queries merged)
-    const joinedIds = m.data?.map(x => x.activity_id) ?? []
-    const [maByMember, maByCreator] = await Promise.all([
-      joinedIds.length > 0
-        ? supabase.from('activities').select('id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)').in('id', joinedIds)
-        : Promise.resolve({ data: [] }),
-      supabase.from('activities').select('id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)').eq('creator_id', user.id)
-    ])
-    // Merge and deduplicate
-    const seenIds = new Set<string>()
-    const mergedActivities: any[] = []
-    for (const row of [...(maByMember.data ?? []), ...(maByCreator.data ?? [])]) {
-      if (!seenIds.has(row.id)) { seenIds.add(row.id); mergedActivities.push(row) }
+    // Determine role early to decide which activities to fetch
+    const earlyRole = user.email?.includes('lt') ? 'lt' : user.email?.includes('pa') ? 'pa' : (r.data?.role ?? 'shad')
+    const isStaff = earlyRole === 'pa' || earlyRole === 'lt'
+
+    // Staff see ALL activities; shads see only their joined/created ones (no date filter)
+    let mergedActivities: any[] = []
+    const actSelect = 'id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)'
+    if (isStaff) {
+      const { data: allActs } = await supabase.from('activities').select(actSelect).order('starts_at')
+      mergedActivities = allActs ?? []
+    } else {
+      const joinedIds = m.data?.map(x => x.activity_id) ?? []
+      const [maByMember, maByCreator] = await Promise.all([
+        joinedIds.length > 0
+          ? supabase.from('activities').select(actSelect).in('id', joinedIds)
+          : Promise.resolve({ data: [] as any[] }),
+        supabase.from('activities').select(actSelect).eq('creator_id', user.id)
+      ])
+      const seenIds = new Set<string>()
+      for (const row of [...(maByMember.data ?? []), ...(maByCreator.data ?? [])]) {
+        if (!seenIds.has(row.id)) { seenIds.add(row.id); mergedActivities.push(row) }
+      }
     }
     mergedActivities.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
     const ma = { data: mergedActivities }
