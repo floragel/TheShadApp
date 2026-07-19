@@ -4,12 +4,14 @@ import { Megaphone, X, CalendarPlus, QrCode, ClipboardList, BarChart3, Users, Sh
 import { supabase } from '../lib/supabase'
 
 export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:string; role:'pa'|'lt'; onClose:()=>void; onSaved:()=>void }) {
-  const [tab, setTab] = useState<'schedule' | 'announcement' | 'qr' | 'absences' | 'polls' | 'waiting' | 'teams' | 'roles'>('schedule')
+  const [tab, setTab] = useState<'schedule' | 'announcement' | 'qr' | 'absences' | 'polls' | 'waiting' | 'teams' | 'roles' | 'studentTeams' | 'wishes'>('schedule')
   const [message, setMessage] = useState('')
   const [teams, setTeams] = useState<any[]>([])
   const [pas, setPas] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
   const [activities, setActivities] = useState<any[]>([])
+  const [scheduleEvents, setScheduleEvents] = useState<any[]>([])
+  const [wishes, setWishes] = useState<any[]>([])
   
   // Specific data for features
   const [absences, setAbsences] = useState<any[]>([])
@@ -21,7 +23,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
   const [scanResult, setScanResult] = useState('')
   const [activityMembers, setActivityMembers] = useState<any[]>([])
 
-  useEffect(() => {
+  const loadData = () => {
     if (!supabase) return
     
     // Load general requirements
@@ -29,16 +31,26 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
       supabase.from('teams').select('id,name,kind').order('kind').order('name'),
       supabase.from('user_roles').select('user_id,profiles(display_name)').eq('role', 'pa'),
       supabase.from('profiles').select('id,display_name').order('display_name'),
-      supabase.from('activities').select('id,title,capacity').gte('ends_at', new Date().toISOString())
-    ]).then(([t, p, pr, a]) => {
+      supabase.from('activities').select('id,title,capacity').gte('ends_at', new Date().toISOString()),
+      supabase.from('schedule_events').select('*').order('starts_at'),
+      supabase.from('shad_wishes').select('*, profiles:user_id(display_name)').order('created_at', { ascending: false }).limit(40)
+    ]).then(([t, p, pr, a, se, w]) => {
       setTeams(t.data ?? [])
       setPas(p.data ?? [])
       setProfiles(pr.data ?? [])
       setActivities(a.data ?? [])
-      if (a.data && a.data.length > 0) {
+      setScheduleEvents(se.data ?? [])
+      setWishes(w.data ?? [])
+      if (a.data && a.data.length > 0 && !selectedActivity) {
         setSelectedActivity(a.data[0].id)
       }
+    }).catch(err => {
+      console.warn('Error loading dashboard data (shad_wishes might not exist yet):', err)
     })
+  }
+
+  useEffect(() => {
+    loadData()
   }, [role])
 
   // Reload tab-specific data
@@ -77,13 +89,10 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
 
   const handlePromoteFromWaitlist = async (waitlistId: string, activityId: string, profileId: string) => {
     if (!supabase) return
-    // Remove from waitlist
     await supabase.from('activity_waiting_list').delete().eq('id', waitlistId)
-    // Add to members
     const { error } = await supabase.from('activity_members').insert({ activity_id: activityId, user_id: profileId })
     if (!error) {
       setMessage('Participant promoted to joined list!')
-      // Refresh waitlists
       const { data } = await supabase.from('activities').select('id,title,capacity,activity_waiting_list(*,profiles:user_id(display_name))')
       setWaitlists(data ?? [])
     } else {
@@ -113,7 +122,6 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
     setMessage(error?.message ?? 'Poll published.')
     if (!error) {
       e.currentTarget.reset()
-      // Refresh polls
       const { data } = await supabase.from('polls').select('*, profiles:created_by(display_name)').order('created_at', { ascending: false })
       setPolls(data ?? [])
     }
@@ -125,7 +133,6 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
       .eq('activity_id', selectedActivity).eq('user_id', profileId)
 
     if (error) {
-      // If not a member, try to add them and confirm
       const { error: insErr } = await supabase.from('activity_members').insert({
         activity_id: selectedActivity,
         user_id: profileId,
@@ -136,7 +143,6 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
       setMessage('Checked in successfully.')
     }
     
-    // Refresh members list
     const { data } = await supabase.from('activity_members').select('*, profiles:user_id(display_name)').eq('activity_id', selectedActivity)
     setActivityMembers(data ?? [])
   }
@@ -158,8 +164,48 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
     const { error } = await supabase.from('user_roles').update({ role: newRole }).eq('user_id', targetUserId)
     setMessage(error?.message ?? `Role updated to ${newRole.toUpperCase()}.`)
     if (!error) {
-      // Update local profiles list if necessary, or reload roles
+      loadData()
     }
+  }
+
+  const handleDeleteScheduleEvent = async (id: string) => {
+    if (!supabase) return
+    const { error } = await supabase.from('schedule_events').delete().eq('id', id)
+    if (!error) {
+      setMessage('Schedule event deleted.')
+      setScheduleEvents(cur => cur.filter(ev => ev.id !== id))
+      onSaved()
+    } else {
+      setMessage(error.message)
+    }
+  }
+
+  const handleAssignStudentTeams = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!supabase) return
+    const f = new FormData(e.currentTarget)
+    const studentId = f.get('student')?.toString()
+    const houseId = f.get('house')?.toString()
+    const designId = f.get('design')?.toString()
+    if (!studentId) return
+
+    setMessage('Saving assignments...')
+
+    // Delete existing memberships
+    await supabase.from('team_memberships').delete().eq('user_id', studentId)
+
+    // Insert new memberships
+    const inserts = []
+    if (houseId) inserts.push({ user_id: studentId, team_id: houseId, team_kind: 'house' })
+    if (designId) inserts.push({ user_id: studentId, team_id: designId, team_kind: 'design' })
+
+    if (inserts.length > 0) {
+      const { error } = await supabase.from('team_memberships').insert(inserts)
+      setMessage(error?.message ?? 'Student teams updated successfully!')
+    } else {
+      setMessage('Student teams cleared.')
+    }
+    onSaved()
   }
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -187,6 +233,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
     setMessage(result.error?.message ?? 'Published.')
     if (!result.error) {
       e.currentTarget.reset()
+      loadData()
       onSaved()
     }
   }
@@ -203,18 +250,71 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
         </div>
 
         {/* Dashboard Navigation Tabs */}
-        <div className="auth-tabs" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginBottom: '16px', overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap', padding: '4px' }}>
+        <div className="auth-tabs" style={{ gap: '4px', marginBottom: '16px', overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap', padding: '4px' }}>
           <button className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}><CalendarPlus size={15} /> Agenda</button>
           <button className={tab === 'announcement' ? 'active' : ''} onClick={() => setTab('announcement')}><Megaphone size={15} /> News</button>
           <button className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}><QrCode size={15} /> QR Attendance</button>
           <button className={tab === 'absences' ? 'active' : ''} onClick={() => setTab('absences')}><ClipboardList size={15} /> Absences</button>
           <button className={tab === 'polls' ? 'active' : ''} onClick={() => setTab('polls')}><BarChart3 size={15} /> Surveys</button>
           <button className={tab === 'waiting' ? 'active' : ''} onClick={() => setTab('waiting')}><Users size={15} /> Waitlist</button>
+          <button className={tab === 'studentTeams' ? 'active' : ''} onClick={() => setTab('studentTeams')}><Users size={15} /> Assign Teams</button>
+          <button className={tab === 'wishes' ? 'active' : ''} onClick={() => setTab('wishes')}><ClipboardList size={15} /> Student Wishes</button>
           {role === 'lt' && <button className={tab === 'teams' ? 'active' : ''} onClick={() => setTab('teams')}><ShieldAlert size={15} /> PA Teams</button>}
           {role === 'lt' && <button className={tab === 'roles' ? 'active' : ''} onClick={() => setTab('roles')}><ShieldAlert size={15} /> Roles</button>}
         </div>
 
         {/* Tab Contents */}
+        {tab === 'wishes' && (
+          <div className="staff-form" style={{ display: 'grid', gap: '16px' }}>
+            <h3>Student Wishes & AI Requests</h3>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 10px' }}>
+              These are the expressions and activities students have searched for via the AI Matcher. Use this feedback to build and coordinate cohort schedules.
+            </p>
+            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'grid', gap: '10px' }}>
+              {wishes.map(wish => (
+                <div key={wish.id} className="report-row" style={{ padding: '12px 16px', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gap: '4px' }}>
+                    <strong style={{ fontSize: '15px', color: 'var(--purple)' }}>"{wish.prompt}"</strong>
+                    <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                      Requested by {wish.profiles?.display_name || 'Anonymous student'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                    {new Date(wish.created_at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+              {wishes.length === 0 && <p className="empty-state">No search requests recorded yet.</p>}
+            </div>
+          </div>
+        )}
+
+        {tab === 'studentTeams' && (
+          <form className="profile-form staff-form" onSubmit={handleAssignStudentTeams}>
+            <h3>Assign Student House & Design Teams</h3>
+            <label>Student
+              <select name="student" required>
+                <option value="">-- Choose student --</option>
+                {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+              </select>
+            </label>
+            <label>House Team
+              <select name="house">
+                <option value="">None / Clear</option>
+                {teams.filter(t => t.kind === 'house').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </label>
+            <label>Design Team
+              <select name="design">
+                <option value="">None / Clear</option>
+                {teams.filter(t => t.kind === 'design').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </label>
+            <button className="auth-submit">Save Assignments</button>
+            {message && <p className="form-message">{message}</p>}
+          </form>
+        )}
+
         {tab === 'teams' && role === 'lt' && (
           <form className="profile-form staff-form" onSubmit={async e => {
             e.preventDefault()
@@ -385,7 +485,6 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
                     {poll.options.map((opt: string, idx: number) => (
                       <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 8px', border: '1px solid var(--line)', borderRadius: '6px', background: 'white' }}>
                         <span>{opt}</span>
-                        {/* We will show total votes simplified on staff dashboard */}
                         <strong>Option {idx+1}</strong>
                       </div>
                     ))}
@@ -399,14 +498,14 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
 
         {tab === 'waiting' && (
           <div className="staff-form" style={{ display: 'grid', gap: '16px' }}>
-            <h3>Activity Waiting Lists</h3>
-            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'grid', gap: '14px' }}>
+            <h3>Waiting List Management</h3>
+            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'grid', gap: '12px' }}>
               {waitlists.map(act => (
-                <div key={act.id} style={{ padding: '14px', background: 'white', border: '1px solid var(--line)', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div key={act.id} className="poll-card" style={{ background: '#faf9fb' }}>
+                  <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', paddingBottom: '8px', marginBottom: '8px' }}>
                     <strong>{act.title}</strong>
-                    <span style={{ fontSize: '11px', color: 'var(--purple)', fontWeight: 700 }}>
-                      Waitlist ({act.activity_waiting_list?.length ?? 0} queued)
+                    <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>
+                      Waitlist ({act.activity_waiting_list?.length || 0})
                     </span>
                   </div>
                   
@@ -434,32 +533,71 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
           </div>
         )}
 
-        {/* Existing Agenda and News panels */}
-        {(tab === 'schedule' || tab === 'announcement') && (
-          <form className="profile-form staff-form" onSubmit={submit}>
-            <label>Title<input name="title" required maxLength={100} /></label>
-            <label>{tab === 'schedule' ? 'Description' : 'Message'}<textarea name="body" required rows={4} maxLength={600} /></label>
+        {tab === 'schedule' && (
+          <div className="staff-form" style={{ display: 'grid', gap: '20px' }}>
+            <h3>Official Agenda Schedule (Full access)</h3>
             
-            {tab === 'schedule' && (
-              <>
+            <div>
+              <h4 style={{ marginBottom: '10px' }}>Existing Events ({scheduleEvents.length}):</h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'grid', gap: '8px', background: '#f8fafc', padding: '12px', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                {scheduleEvents.map(ev => (
+                  <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'white', border: '1px solid var(--line)', borderRadius: '10px', fontSize: '13px' }}>
+                    <div>
+                      <strong>{ev.title}</strong>
+                      <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '2px' }}>
+                        {ev.location} · {new Date(ev.starts_at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteScheduleEvent(ev.id)}
+                      style={{ padding: '5px 10px', color: '#b91c1c', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+                {scheduleEvents.length === 0 && <p className="empty-message" style={{ margin: 0, padding: '12px' }}>No events in the official agenda.</p>}
+              </div>
+            </div>
+
+            <div>
+              <h4 style={{ marginBottom: '10px' }}>Add New Event:</h4>
+              <form className="profile-form" onSubmit={submit}>
+                <label>Event Title<input name="title" required maxLength={100} /></label>
+                <label>Description<textarea name="body" required rows={3} maxLength={600} /></label>
                 <label>Location<input name="location" required /></label>
                 <div className="form-row">
                   <label>Starts<input name="starts" type="datetime-local" required /></label>
                   <label>Ends<input name="ends" type="datetime-local" required /></label>
                 </div>
-              </>
-            )}
-            
-            {tab === 'announcement' && (
-              <label>Priority
-                <select name="priority">
-                  <option value="normal">Normal</option>
-                  <option value="important">Important</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </label>
-            )}
-            
+                <label>Audience
+                  <select name="audience">
+                    <option value="all">Everyone</option>
+                    <option value="shad">SHAD</option>
+                    <option value="pa">PA</option>
+                    <option value="lt">LT</option>
+                  </select>
+                </label>
+                <button className="auth-submit">Publish Event</button>
+              </form>
+            </div>
+            {message && <p className="form-message">{message}</p>}
+          </div>
+        )}
+
+        {/* Form for announcements */}
+        {tab === 'announcement' && (
+          <form className="profile-form staff-form" onSubmit={submit}>
+            <h3>Publish Cohort News / Announcement</h3>
+            <label>Title<input name="title" required maxLength={100} /></label>
+            <label>Message<textarea name="body" required rows={4} maxLength={600} /></label>
+            <label>Priority
+              <select name="priority">
+                <option value="normal">Normal</option>
+                <option value="important">Important</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </label>
             <label>Audience
               <select name="audience">
                 <option value="all">Everyone</option>
@@ -468,8 +606,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
                 <option value="lt">LT</option>
               </select>
             </label>
-            
-            <button className="auth-submit">Publish</button>
+            <button className="auth-submit">Publish Announcement</button>
             {message && <p className="form-message">{message}</p>}
           </form>
         )}

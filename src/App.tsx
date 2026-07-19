@@ -261,7 +261,16 @@ export default function App() {
           <button className={view === 'absences' ? 'active' : ''} onClick={() => setView('absences')}><AlertCircle size={18} /> Absences</button>
         </nav>
         <div className="header-actions">
-          {role !== 'shad' && <button className="staff-button" onClick={() => setStaffOpen(true)}><ShieldCheck size={17} /> Staff</button>}
+          {role !== 'shad' && (
+            <>
+              <button className="create-activity-button-header" onClick={() => setComposerOpen(true)}>
+                <Plus size={16} /> Create Activity
+              </button>
+              <button className="staff-button" onClick={() => setStaffOpen(true)}>
+                <ShieldCheck size={17} /> Staff
+              </button>
+            </>
+          )}
           <button className="icon-button notification-trigger" aria-label="Notifications" onClick={() => setNotificationsOpen(!notificationsOpen)}>
             <Bell size={20} />
             {announcements.length > 0 && <i>{announcements.length}</i>}
@@ -505,6 +514,15 @@ export default function App() {
                     if (!supabase || !aiPrompt.trim()) return
                     setAiBusy(true)
                     setAiResult('')
+                    if (user) {
+                      void (async () => {
+                        try {
+                          await supabase.from('shad_wishes').insert({ user_id: user.id, prompt: aiPrompt.trim() })
+                        } catch (err) {
+                          console.warn('Wish log failed:', err)
+                        }
+                      })()
+                    }
                     try {
                       const { data, error } = await supabase.functions.invoke('activity-match', { body: { prompt: aiPrompt } })
                       if (!error && data?.recommendation) {

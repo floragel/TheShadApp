@@ -84,10 +84,10 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
               <button className="save-button">Save profile</button>
             </form>
             <div className="team-picker">
-              <div className="team-heading"><UsersRound size={18} /><div><strong>House team</strong><span>Choose one</span></div></div>
-              <div className="team-options">{teamGroup('house').map((team) => <button key={team.id} className={selectedByKind.get('house') === team.id ? 'selected' : ''} onClick={() => void selectTeam(team)} style={{ '--team-color': team.color } as CSSProperties}><span />{team.name}{selectedByKind.get('house') === team.id && <Check size={15} />}</button>)}</div>
-              <div className="team-heading"><UsersRound size={18} /><div><strong>Design team</strong><span>Choose one</span></div></div>
-              <div className="team-options">{teamGroup('design').map((team) => <button key={team.id} className={selectedByKind.get('design') === team.id ? 'selected' : ''} onClick={() => void selectTeam(team)} style={{ '--team-color': team.color } as CSSProperties}><span />{team.name}{selectedByKind.get('design') === team.id && <Check size={15} />}</button>)}</div>
+              <div className="team-heading"><UsersRound size={18} /><div><strong>House team</strong><span style={{ color: 'var(--purple)' }}>Assigned by PAs & LTs</span></div></div>
+              <div className="team-options readonly">{teamGroup('house').map((team) => <button key={team.id} className={selectedByKind.get('house') === team.id ? 'selected' : ''} disabled style={{ '--team-color': team.color } as CSSProperties}><span />{team.name}{selectedByKind.get('house') === team.id && <Check size={15} />}</button>)}</div>
+              <div className="team-heading"><UsersRound size={18} /><div><strong>Design team</strong><span style={{ color: 'var(--purple)' }}>Assigned by PAs & LTs</span></div></div>
+              <div className="team-options readonly">{teamGroup('design').map((team) => <button key={team.id} className={selectedByKind.get('design') === team.id ? 'selected' : ''} disabled style={{ '--team-color': team.color } as CSSProperties}><span />{team.name}{selectedByKind.get('design') === team.id && <Check size={15} />}</button>)}</div>
             </div>
             
             <div className="qr-code-display">
