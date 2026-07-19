@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Bell, CalendarDays, Compass, Plus, Search, Sparkles, UserRound, ShieldCheck, MapPin, BarChart3, AlertCircle, CheckCircle } from 'lucide-react'
+import { Bell, CalendarDays, Compass, Plus, UserRound, ShieldCheck, MapPin, BarChart3, AlertCircle, CheckCircle, Send } from 'lucide-react'
 import { ActivityCard } from './components/ActivityCard'
 import { AuthScreen } from './components/AuthScreen'
 import { ProfilePanel } from './components/ProfilePanel'
@@ -19,22 +19,6 @@ const scoreNotice = (notice: { priority: string; author_role?: string; team_id?:
   (notice.author_role === 'lt' ? 30 : notice.author_role === 'pa' ? 20 : 0) +
   (notice.team_id && ownTeams.includes(notice.team_id) ? 15 : 0)
 
-const getCategoryForPrompt = (prompt: string): ActivityCategory | null => {
-  const p = prompt.toLowerCase()
-  if (p.includes('sleep') || p.includes('nap') || p.includes('bed') || p.includes('tired') || p.includes('relax') || p.includes('rest') || p.includes('chill') || p.includes('sit') || p.includes('study') || p.includes('read') || p.includes('book') || p.includes('lounge') || p.includes('boardgame') || p.includes('game') || p.includes('talk') || p.includes('chat') || p.includes('movie')) {
-    return 'Chill'
-  }
-  if (p.includes('sport') || p.includes('soccer') || p.includes('volley') || p.includes('ball') || p.includes('run') || p.includes('walk') || p.includes('gym') || p.includes('active') || p.includes('move') || p.includes('exercise') || p.includes('play')) {
-    return 'Active'
-  }
-  if (p.includes('eat') || p.includes('hungry') || p.includes('food') || p.includes('dinner') || p.includes('lunch') || p.includes('breakfast') || p.includes('cafeteria') || p.includes('dining') || p.includes('snack') || p.includes('drink') || p.includes('coffee') || p.includes('tea') || p.includes('boba')) {
-    return 'Food'
-  }
-  if (p.includes('paint') || p.includes('draw') || p.includes('craft') || p.includes('design') || p.includes('art') || p.includes('creative') || p.includes('music') || p.includes('sing') || p.includes('sketch') || p.includes('diy')) {
-    return 'Creative'
-  }
-  return null
-}
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -53,10 +37,9 @@ export default function App() {
   const [teamIds, setTeamIds] = useState<string[]>([])
   const [dragged, setDragged] = useState<string | null>(null)
 
-  // AI activities matching
-  const [aiResult, setAiResult] = useState('')
-  const [aiBusy, setAiBusy] = useState(false)
-  const [aiPrompt, setAiPrompt] = useState('')
+  // Staff wish message
+  const [wishMessage, setWishMessage] = useState('')
+  const [wishSent, setWishSent] = useState(false)
 
   // View tabs
   const [view, setView] = useState<'discover' | 'plans' | 'map' | 'polls' | 'absences'>('discover')
@@ -91,15 +74,26 @@ export default function App() {
     if (!supabase || !user) return
 
     // Execute existing live queries
-    const [a, n, s, r, m, tm, ma] = await Promise.all([
+    const [a, n, s, r, m, tm] = await Promise.all([
       supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').gte('ends_at', new Date().toISOString()).order('starts_at'),
       supabase.from('announcements').select('id,title,body,priority,created_at,author_role,team_id').order('created_at', { ascending: false }).limit(12),
       supabase.from('schedule_events').select('id,title,starts_at,location').gte('ends_at', new Date().toISOString()).order('starts_at').limit(12),
       supabase.from('user_roles').select('role').eq('user_id', user.id).single(),
       supabase.from('activity_members').select('activity_id').eq('user_id', user.id),
-      supabase.from('team_memberships').select('team_id').eq('user_id', user.id),
-      supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').in('id', (await supabase.from('activity_members').select('activity_id').eq('user_id', user.id)).data?.map(x => x.activity_id) ?? []).order('starts_at')
+      supabase.from('team_memberships').select('team_id').eq('user_id', user.id)
     ])
+
+    // Fetch all activities the user is a member of (no date filter — shows past + future)
+    const joinedIds = m.data?.map(x => x.activity_id) ?? []
+    let ma: { data: any[] | null } = { data: null }
+    if (joinedIds.length > 0) {
+      ma = await supabase.from('activities')
+        .select('*, profiles!creator_id(display_name), activity_members(count)')
+        .in('id', joinedIds)
+        .order('starts_at')
+    } else {
+      ma = { data: [] }
+    }
 
     // Load new feature queries
     const [wl, pl, vt, ab] = await Promise.all([
@@ -197,7 +191,7 @@ export default function App() {
     [activeFilter, liveActivities]
   )
 
-  if (loading) return <div className="app-loading"><span className="brand-mark"><Sparkles size={20} /></span><p>Getting ShadLoop ready…</p></div>
+  if (loading) return <div className="app-loading"><span className="brand-mark"><Send size={20} /></span><p>Getting ShadLoop ready…</p></div>
   if (!user) return <AuthScreen />
 
   const toggleJoin = async (id: string) => {
@@ -522,70 +516,37 @@ export default function App() {
               {role !== 'shad' && <button className="create-button" onClick={() => setComposerOpen(true)}><Plus size={20} /> Create an activity</button>}
             </section>
 
-            <section className="ai-prompt" aria-label="AI activity finder">
-              <div className="ai-icon"><Sparkles size={22} /></div>
-              <div>
-                <label htmlFor="activity-search">Tell us what you feel like doing</label>
-                <p>Try “something active with new people for 30 minutes”</p>
+            <section className="ai-prompt" aria-label="Message your PA/LT">
+              <div className="ai-icon"><Send size={22} /></div>
+              <div style={{ flex: 1 }}>
+                <label htmlFor="wish-input">Tell us what you feel like doing</label>
+                <p>Your message goes directly to your PA and LT</p>
               </div>
-              <div className="search-box">
-                <input 
-                  id="activity-search" 
-                  placeholder="I want to…" 
-                  value={aiPrompt} 
-                  onChange={e => setAiPrompt(e.target.value)} 
+              <div className="search-box" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                <input
+                  id="wish-input"
+                  placeholder="I want to…"
+                  value={wishMessage}
+                  onChange={e => { setWishMessage(e.target.value); setWishSent(false) }}
                 />
-                <button 
-                  disabled={aiBusy} 
-                  aria-label="Find activities" 
+                <button
+                  disabled={!wishMessage.trim() || wishSent}
+                  aria-label="Send message to staff"
+                  style={{ borderRadius: '12px', padding: '10px 18px', background: wishSent ? '#22c55e' : 'var(--gradient-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: wishSent ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}
                   onClick={async () => {
-                    if (!supabase || !aiPrompt.trim()) return
-                    setAiBusy(true)
-                    setAiResult('')
-                    if (user) {
-                      void (async () => {
-                        try {
-                          await supabase.from('shad_wishes').insert({ user_id: user.id, prompt: aiPrompt.trim() })
-                        } catch (err) {
-                          console.warn('Wish log failed:', err)
-                        }
-                      })()
-                    }
+                    if (!supabase || !user || !wishMessage.trim()) return
                     try {
-                      const { data, error } = await supabase.functions.invoke('activity-match', { body: { prompt: aiPrompt } })
-                      if (!error && data?.recommendation) {
-                        setAiResult(data.recommendation)
-                      } else {
-                        throw new Error(error?.message || data?.error || 'Edge function error')
-                      }
-                    } catch (e) {
-                      console.warn('Edge function failed, falling back to local search matching:', e)
-                      const term = aiPrompt.toLowerCase()
-                      const categoryMatch = getCategoryForPrompt(term)
-                      const matches = liveActivities.filter(a => 
-                        a.title.toLowerCase().includes(term) || 
-                        (a.description && a.description.toLowerCase().includes(term)) ||
-                        a.category.toLowerCase().includes(term) ||
-                        a.location.toLowerCase().includes(term) ||
-                        (categoryMatch && a.category === categoryMatch)
-                      ).slice(0, 3)
-
-                      if (matches.length > 0) {
-                        setAiResult(`Local Match:\n\n` + 
-                          matches.map(m => `• **${m.title}** at ${m.location} (${m.category})`).join('\n')
-                        )
-                      } else {
-                        setAiResult(`Could not find any matches for "${aiPrompt}". Try searching for categories like "Active" or "Food"!`)
-                      }
-                    } finally {
-                      setAiBusy(false)
+                      await supabase.from('shad_wishes').insert({ user_id: user.id, prompt: wishMessage.trim() })
+                      setWishSent(true)
+                      setWishMessage('')
+                    } catch (err) {
+                      console.warn('Could not send message:', err)
                     }
                   }}
                 >
-                  <Search size={19} />
+                  {wishSent ? <><CheckCircle size={16} /> Sent to staff!</> : <><Send size={16} /> Send to PA/LT</>}
                 </button>
               </div>
-              {aiResult && <p className="ai-result">{aiResult}</p>}
             </section>
 
             <section className="discover-section" id="discover">
