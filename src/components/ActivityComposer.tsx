@@ -29,7 +29,7 @@ export function ActivityComposer({ userId, onClose, onSaved }: { userId:string; 
     if (!supabase) return
     const f = new FormData(e.currentTarget)
     
-    const { error } = await supabase.from('activities').insert({
+    const { data: newAct, error } = await supabase.from('activities').insert({
       creator_id: userId,
       title: f.get('title'),
       description: f.get('description'),
@@ -40,7 +40,11 @@ export function ActivityComposer({ userId, onClose, onSaved }: { userId:string; 
       capacity: Number(f.get('capacity')),
       team_id: selectedTeams[0] || null, // Legacy single team compatibility
       team_ids: selectedTeams.length > 0 ? selectedTeams : null // New multi-team array support
-    })
+    }).select('id').single()
+
+    if (!error && newAct) {
+      await supabase.from('activity_members').insert({ activity_id: newAct.id, user_id: userId })
+    }
 
     setMessage(error?.message ?? 'Activity created.')
     if (!error) {

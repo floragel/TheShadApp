@@ -992,3 +992,10 @@ h2 { font-size: 32px; letter-spacing: -1.2px; font-weight: 800; }
   .auth-title { margin: 26px 0 22px; }
   .profile-panel { padding: 24px 20px; }
 }
+
+/* Proportional Desktop Scaling */
+@media (min-width: 1100px) {
+  body {
+    zoom: calc(100vw / 1300);
+  }
+}
