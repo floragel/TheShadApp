@@ -19,6 +19,23 @@ const scoreNotice = (notice: { priority: string; author_role?: string; team_id?:
   (notice.author_role === 'lt' ? 30 : notice.author_role === 'pa' ? 20 : 0) +
   (notice.team_id && ownTeams.includes(notice.team_id) ? 15 : 0)
 
+const getCategoryForPrompt = (prompt: string): ActivityCategory | null => {
+  const p = prompt.toLowerCase()
+  if (p.includes('sleep') || p.includes('nap') || p.includes('bed') || p.includes('tired') || p.includes('relax') || p.includes('rest') || p.includes('chill') || p.includes('sit') || p.includes('study') || p.includes('read') || p.includes('book') || p.includes('lounge') || p.includes('boardgame') || p.includes('game') || p.includes('talk') || p.includes('chat') || p.includes('movie')) {
+    return 'Chill'
+  }
+  if (p.includes('sport') || p.includes('soccer') || p.includes('volley') || p.includes('ball') || p.includes('run') || p.includes('walk') || p.includes('gym') || p.includes('active') || p.includes('move') || p.includes('exercise') || p.includes('play')) {
+    return 'Active'
+  }
+  if (p.includes('eat') || p.includes('hungry') || p.includes('food') || p.includes('dinner') || p.includes('lunch') || p.includes('breakfast') || p.includes('cafeteria') || p.includes('dining') || p.includes('snack') || p.includes('drink') || p.includes('coffee') || p.includes('tea') || p.includes('boba')) {
+    return 'Food'
+  }
+  if (p.includes('paint') || p.includes('draw') || p.includes('craft') || p.includes('design') || p.includes('art') || p.includes('creative') || p.includes('music') || p.includes('sing') || p.includes('sketch') || p.includes('diy')) {
+    return 'Creative'
+  }
+  return null
+}
+
 export default function App() {
   const { user, loading } = useAuth()
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All')
@@ -62,7 +79,7 @@ export default function App() {
   const sendPushNotification = (title: string, body: string) => {
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body, icon: '/logo.png' })
+        new Notification(title, { body, icon: `${import.meta.env.BASE_URL}logo.png` })
       } catch (e) {
         console.error('Browser push notification failed:', e)
       }
@@ -124,7 +141,15 @@ export default function App() {
     }
 
     if (s.data) setSchedule(s.data)
-    if (r.data) setRole(r.data.role)
+    let userRole: 'shad' | 'pa' | 'lt' = 'shad'
+    if (r.data?.role) {
+      userRole = r.data.role
+    } else if (user.email?.includes('lt')) {
+      userRole = 'lt'
+    } else if (user.email?.includes('pa')) {
+      userRole = 'pa'
+    }
+    setRole(userRole)
     if (m.data) setJoined(m.data.map(x => x.activity_id))
     setTeamIds(ownTeams)
 
@@ -224,7 +249,7 @@ export default function App() {
       <header className="topbar">
         <a className="brand" href="#top" aria-label="ShadLoop home">
           <span className="brand-mark" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="S" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="S" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </span>
           <span>shad<span>loop</span></span>
         </a>
@@ -490,11 +515,13 @@ export default function App() {
                     } catch (e) {
                       console.warn('Edge function failed, falling back to local search matching:', e)
                       const term = aiPrompt.toLowerCase()
+                      const categoryMatch = getCategoryForPrompt(term)
                       const matches = liveActivities.filter(a => 
                         a.title.toLowerCase().includes(term) || 
                         (a.description && a.description.toLowerCase().includes(term)) ||
                         a.category.toLowerCase().includes(term) ||
-                        a.location.toLowerCase().includes(term)
+                        a.location.toLowerCase().includes(term) ||
+                        (categoryMatch && a.category === categoryMatch)
                       ).slice(0, 3)
 
                       if (matches.length > 0) {

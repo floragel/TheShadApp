@@ -42,7 +42,7 @@ export function AuthScreen() {
       <section className="auth-story">
         <a className="brand auth-brand" href="./" aria-label="ShadLoop home">
           <span className="brand-mark" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="S" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="S" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </span>
           <span>shad<span>loop</span></span>
         </a>
