@@ -51,11 +51,11 @@ Run `supabase/migrations/20260719_live_platform.sql` once to enable database-bac
 Deploy the protected AI Edge Function and set its server-only key:
 
 ```bash
-supabase secrets set OPENAI_API_KEY=your-openai-api-key
+supabase secrets set GROQ_API_KEY=your-groq-api-key
 supabase functions deploy activity-match
 ```
 
-The OpenAI key is never included in GitHub Pages. Each signed-in participant is limited to 10 AI requests per day; prompts are limited to 300 characters and recommendations may only reference real upcoming database activities.
+The Groq key is never included in GitHub Pages. The function uses the production `llama-3.1-8b-instant` model for this short, latency-sensitive matching task. Each signed-in participant is limited to 10 AI requests per day; prompts are limited to 300 characters and recommendations may only reference real upcoming database activities.
 
 ## GitHub Pages deployment
 
