@@ -29,8 +29,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
-          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          # These are public client-side values. Authorization is enforced by Supabase RLS.
+          VITE_SUPABASE_URL: https://ynkkngdhvzozvlsrpfhr.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_3WbZ-mUaG7vx3i_Oyi7p2A_R8DyT3i9
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

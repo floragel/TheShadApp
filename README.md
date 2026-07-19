@@ -37,9 +37,8 @@ Replace the sample team names in `supabase/schema.sql` before running it if the 
 The workflow at `.github/workflows/deploy-pages.yml` deploys every push to `main`.
 
 1. In the repository, open **Settings → Pages** and choose **GitHub Actions** as the source.
-2. Open **Settings → Secrets and variables → Actions → Variables**.
-3. Add `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` as repository variables.
-4. Push to `main` or manually run the deployment workflow.
+2. The deployment workflow already contains this project's public Supabase URL and publishable key. Never add a `service_role` key to the workflow or frontend.
+3. Push to `main` or manually run the deployment workflow.
 
 ## Team workflow
 
