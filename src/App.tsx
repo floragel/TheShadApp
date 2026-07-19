@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Bell, CalendarDays, Compass, Plus, Search, Sparkles, UserRound } from 'lucide-react'
 import { ActivityCard } from './components/ActivityCard'
+import { AuthScreen } from './components/AuthScreen'
+import { ProfilePanel } from './components/ProfilePanel'
+import { useAuth } from './context/auth-context'
 import { activities } from './data/activities'
 import type { ActivityCategory } from './types/activity'
 import './styles.css'
@@ -8,13 +11,17 @@ import './styles.css'
 const filters: Array<'All' | ActivityCategory> = ['All', 'Active', 'Chill', 'Food', 'Creative']
 
 export default function App() {
+  const { user, loading } = useAuth()
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All')
   const [joined, setJoined] = useState<string[]>([])
-
+  const [profileOpen, setProfileOpen] = useState(false)
   const visibleActivities = useMemo(
     () => activeFilter === 'All' ? activities : activities.filter((activity) => activity.category === activeFilter),
     [activeFilter],
   )
+
+  if (loading) return <div className="app-loading"><span className="brand-mark"><Sparkles size={20} /></span><p>Getting LinkUp ready…</p></div>
+  if (!user) return <AuthScreen />
 
   const toggleJoin = (id: string) => {
     setJoined((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
@@ -33,7 +40,7 @@ export default function App() {
         </nav>
         <div className="header-actions">
           <button className="icon-button" aria-label="Notifications"><Bell size={20} /></button>
-          <div className="avatar" aria-label="Profile">NL</div>
+          <button className="avatar" aria-label="Open profile" onClick={() => setProfileOpen(true)}>{(user.user_metadata.display_name || user.email || 'ME').slice(0, 2).toUpperCase()}</button>
         </div>
       </header>
 
@@ -90,8 +97,9 @@ export default function App() {
         <a href="#schedule"><CalendarDays size={21} /><span>My plans</span></a>
         <button><Plus size={24} aria-label="Create activity" /></button>
         <a href="#search"><Search size={21} /><span>Search</span></a>
-        <a href="#profile"><UserRound size={21} /><span>Profile</span></a>
+        <button className="mobile-profile" onClick={() => setProfileOpen(true)}><UserRound size={21} /><span>Profile</span></button>
       </nav>
+      {profileOpen && <ProfilePanel onClose={() => setProfileOpen(false)} />}
     </div>
   )
 }
