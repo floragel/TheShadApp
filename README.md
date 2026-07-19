@@ -44,6 +44,19 @@ set role = 'lt'
 where user_id = (select id from auth.users where email = 'your-email@example.com');
 ```
 
+## Live platform and AI
+
+Run `supabase/migrations/20260719_live_platform.sql` once to enable database-backed activities, joins, schedules, announcements, PA assignments, and the daily AI quota. No fake activities are shown when the database is empty.
+
+Deploy the protected AI Edge Function and set its server-only key:
+
+```bash
+supabase secrets set OPENAI_API_KEY=your-openai-api-key
+supabase functions deploy activity-match
+```
+
+The OpenAI key is never included in GitHub Pages. Each signed-in participant is limited to 10 AI requests per day; prompts are limited to 300 characters and recommendations may only reference real upcoming database activities.
+
 ## GitHub Pages deployment
 
 The workflow at `.github/workflows/deploy-pages.yml` deploys every push to `main`.
