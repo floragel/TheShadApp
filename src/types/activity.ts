@@ -13,4 +13,5 @@ export interface Activity {
   capacity: number
   accent: string
   teamId?: string | null
+  teamIds?: string[] | null
 }
