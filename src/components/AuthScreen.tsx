@@ -23,7 +23,10 @@ export function AuthScreen() {
       : await supabase.auth.signUp({
           email,
           password,
-          options: { data: { display_name: displayName.trim() } },
+          options: {
+            data: { display_name: displayName.trim() },
+            emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+          },
         })
 
     setBusy(false)
