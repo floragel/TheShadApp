@@ -69,7 +69,7 @@ export function ActivityComposer({ userId, onClose, onSaved }: { userId:string; 
           </label>
           
           <label style={{ display: 'grid', gap: '8px' }}>For teams (optional - select multiple)
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', maxHeight: '130px', overflowY: 'auto', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', maxHeight: '130px', overflowY: 'auto', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)' }}>
               {teams.map(t => (
                 <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', margin: 0, color: 'var(--ink)' }}>
                   <input 
