@@ -49,7 +49,7 @@ export default function App() {
   const [polls, setPolls] = useState<any[]>([])
   const [myVotes, setMyVotes] = useState<any[]>([])
   const [myAbsences, setMyAbsences] = useState<any[]>([])
-  const [selectedMapLocation, setSelectedMapLocation] = useState<string>('The Quad')
+  const [selectedMapLocation, setSelectedMapLocation] = useState<string>('Roll Call')
   const [absenceMessage, setAbsenceMessage] = useState('')
 
   // Request browser notification permissions
@@ -480,9 +480,33 @@ export default function App() {
                     if (!supabase || !aiPrompt.trim()) return
                     setAiBusy(true)
                     setAiResult('')
-                    const { data, error } = await supabase.functions.invoke('activity-match', { body: { prompt: aiPrompt } })
-                    setAiResult(error?.message ?? data?.error ?? data?.recommendation)
-                    setAiBusy(false)
+                    try {
+                      const { data, error } = await supabase.functions.invoke('activity-match', { body: { prompt: aiPrompt } })
+                      if (!error && data?.recommendation) {
+                        setAiResult(data.recommendation)
+                      } else {
+                        throw new Error(error?.message || data?.error || 'Edge function error')
+                      }
+                    } catch (e) {
+                      console.warn('Edge function failed, falling back to local search matching:', e)
+                      const term = aiPrompt.toLowerCase()
+                      const matches = liveActivities.filter(a => 
+                        a.title.toLowerCase().includes(term) || 
+                        (a.description && a.description.toLowerCase().includes(term)) ||
+                        a.category.toLowerCase().includes(term) ||
+                        a.location.toLowerCase().includes(term)
+                      ).slice(0, 3)
+
+                      if (matches.length > 0) {
+                        setAiResult(`Local Match:\n\n` + 
+                          matches.map(m => `• **${m.title}** at ${m.location} (${m.category})`).join('\n')
+                        )
+                      } else {
+                        setAiResult(`Could not find any matches for "${aiPrompt}". Try searching for categories like "Active" or "Food"!`)
+                      }
+                    } finally {
+                      setAiBusy(false)
+                    }
                   }}
                 >
                   <Search size={19} />

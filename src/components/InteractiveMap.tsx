@@ -13,12 +13,15 @@ export interface MapLocation {
 }
 
 const CAMPUS_LOCATIONS: MapLocation[] = [
-  { id: 'residence', name: 'Residences', description: 'Student housing dormitories and common rooms', x: 50, y: 50, w: 120, h: 100, color: '#ec6a8d' },
-  { id: 'quad', name: 'The Quad', description: 'Open lawn and central gathering area', x: 220, y: 120, w: 140, h: 110, color: '#38a875' },
-  { id: 'dining', name: 'Dining Hall', description: 'Main cafeteria and snack bars', x: 50, y: 200, w: 100, h: 90, color: '#e3a72f' },
-  { id: 'science', name: 'Science Building', description: 'Lab facilities, lecture theatres and workshops', x: 420, y: 50, w: 130, h: 100, color: '#6d3df5' },
-  { id: 'library', name: 'Macdonald Library', description: 'Quiet study areas and group meeting spaces', x: 420, y: 200, w: 110, h: 90, color: '#3788e5' },
-  { id: 'gym', name: 'Athletic Centre', description: 'Gymnasium, swimming pool and tennis courts', x: 220, y: 280, w: 120, h: 80, color: '#319caa' }
+  { id: 'volleyball', name: 'Volley Ball Field', description: 'Outdoor sand court for competitive and casual matches', x: 200, y: 180, w: 150, h: 75, color: '#38a875' },
+  { id: 'cafeteria', name: 'Cafeteria', description: 'Cohort dining hall and beverage station', x: 200, y: 50, w: 120, h: 70, color: '#e3a72f' },
+  { id: 'floor2', name: 'Floor 2 Lounge', description: 'Residences second floor common room and games area', x: 40, y: 50, w: 120, h: 50, color: '#ec6a8d' },
+  { id: 'floor3', name: 'Floor 3 Lounge', description: 'Residences third floor quiet study space and kitchen', x: 40, y: 110, w: 120, h: 50, color: '#ec6a8d' },
+  { id: 'floor4', name: 'Floor 4 Lounge', description: 'Residences fourth floor TV lounge and social area', x: 40, y: 170, w: 120, h: 50, color: '#ec6a8d' },
+  { id: 'floor5', name: 'Floor 5 Lounge', description: 'Residences fifth floor panoramic view room and seating', x: 40, y: 230, w: 120, h: 50, color: '#ec6a8d' },
+  { id: 'lobby', name: 'Lobby', description: 'Main building reception and check-in lobby', x: 40, y: 290, w: 120, h: 50, color: '#319caa' },
+  { id: 'rollcall', name: 'Roll Call', description: 'Central courtyard gathering point for cohort attendance', x: 380, y: 50, w: 120, h: 70, color: '#6d3df5' },
+  { id: 'fireside', name: 'Fireside', description: 'Outdoor firepit and lounge area', x: 380, y: 180, w: 120, h: 70, color: '#3788e5' }
 ]
 
 interface InteractiveMapProps {
@@ -108,7 +111,7 @@ export function InteractiveMap({ onSelectLocation, selectedLocation, activities 
                   style={{
                     fontFamily: 'Manrope, sans-serif',
                     fontWeight: 700,
-                    fontSize: '13px',
+                    fontSize: '10px',
                     fill: '#211d2c'
                   }}
                 >
