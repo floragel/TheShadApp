@@ -47,6 +47,7 @@ export default function App() {
   
   // Dynamic collections
   const [liveActivities, setLiveActivities] = useState<Activity[]>([])
+  const [myActivities, setMyActivities] = useState<Activity[]>([])
   const [announcements, setAnnouncements] = useState<Array<any>>([])
   const [schedule, setSchedule] = useState<Array<any>>([])
   const [teamIds, setTeamIds] = useState<string[]>([])
@@ -90,13 +91,14 @@ export default function App() {
     if (!supabase || !user) return
 
     // Execute existing live queries
-    const [a, n, s, r, m, tm] = await Promise.all([
+    const [a, n, s, r, m, tm, ma] = await Promise.all([
       supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').gte('ends_at', new Date().toISOString()).order('starts_at'),
       supabase.from('announcements').select('id,title,body,priority,created_at,author_role,team_id').order('created_at', { ascending: false }).limit(12),
       supabase.from('schedule_events').select('id,title,starts_at,location').gte('ends_at', new Date().toISOString()).order('starts_at').limit(12),
       supabase.from('user_roles').select('role').eq('user_id', user.id).single(),
       supabase.from('activity_members').select('activity_id').eq('user_id', user.id),
-      supabase.from('team_memberships').select('team_id').eq('user_id', user.id)
+      supabase.from('team_memberships').select('team_id').eq('user_id', user.id),
+      supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').in('id', (await supabase.from('activity_members').select('activity_id').eq('user_id', user.id)).data?.map(x => x.activity_id) ?? []).order('starts_at')
     ])
 
     // Load new feature queries
@@ -161,6 +163,23 @@ export default function App() {
     }
     if (m.data) setJoined(m.data.map(x => x.activity_id))
     setTeamIds(ownTeams)
+    if (ma.data) {
+      setMyActivities(ma.data.map((x: any) => ({
+        id: x.id,
+        title: x.title,
+        description: x.description,
+        category: x.category,
+        emoji: x.category === 'Active' ? '🏐' : x.category === 'Food' ? '🧋' : x.category === 'Creative' ? '🎨' : '🃏',
+        time: new Date(x.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: x.location,
+        host: x.profiles?.display_name ?? 'Staff',
+        attendees: x.activity_members?.[0]?.count ?? 0,
+        capacity: x.capacity,
+        accent: '#d8c5ff',
+        teamId: x.team_id,
+        teamIds: x.team_ids
+      })))
+    }
 
     // Set new features states
     if (wl.data) setWaitingList(wl.data)
@@ -438,7 +457,7 @@ export default function App() {
               <div>
                 <h2>Activities you joined</h2>
                 <div className="activity-grid">
-                  {liveActivities.filter(a => joined.includes(a.id)).map(a => (
+                  {myActivities.map(a => (
                     <ActivityCard 
                       key={a.id} 
                       activity={a} 
@@ -447,7 +466,7 @@ export default function App() {
                       onJoin={toggleJoin}
                     />
                   ))}
-                  {joined.length === 0 && <div className="empty-state">No joined activities yet.</div>}
+                  {myActivities.length === 0 && <div className="empty-state">No joined activities yet.</div>}
                 </div>
               </div>
               <div>
