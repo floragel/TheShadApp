@@ -27,29 +27,42 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
   const loadData = () => {
     if (!supabase) return
     
-    // Load general requirements
+    // Load general requirements (separated so one failure doesn't block all)
     void Promise.all([
       supabase.from('teams').select('id,name,color,kind').order('kind').order('name'),
       supabase.from('user_roles').select('user_id,profiles(display_name)').eq('role', 'pa'),
       supabase.from('profiles').select('id,display_name').order('display_name'),
       supabase.from('activities').select('id,title,capacity').gte('ends_at', new Date().toISOString()),
       supabase.from('schedule_events').select('*').order('starts_at'),
-      supabase.from('shad_wishes').select('*, profiles:user_id(display_name)').order('created_at', { ascending: false }).limit(40),
       supabase.from('team_memberships').select('*, profiles:user_id(display_name)')
-    ]).then(([t, p, pr, a, se, w, m]) => {
+    ]).then(([t, p, pr, a, se, m]) => {
+      if (t.error) console.error('teams error:', t.error)
+      if (p.error) console.error('user_roles error:', p.error)
+      if (pr.error) console.error('profiles error:', pr.error)
+      if (a.error) console.error('activities error:', a.error)
+      if (se.error) console.error('schedule_events error:', se.error)
+      if (m.error) console.error('team_memberships error:', m.error)
       setTeams(t.data ?? [])
       setPas(p.data ?? [])
       setProfiles(pr.data ?? [])
       setActivities(a.data ?? [])
       setScheduleEvents(se.data ?? [])
-      setWishes(w.data ?? [])
       setMemberships(m.data ?? [])
       if (a.data && a.data.length > 0 && !selectedActivity) {
         setSelectedActivity(a.data[0].id)
       }
-    }).catch(err => {
-      console.warn('Error loading dashboard data (shad_wishes might not exist yet):', err)
-    })
+    }).catch(err => console.error('Dashboard load error:', err))
+
+    // Load wishes separately so a DB error doesn't block the rest
+    void supabase
+      .from('shad_wishes')
+      .select('id, prompt, created_at, profiles:user_id(display_name)')
+      .order('created_at', { ascending: false })
+      .limit(40)
+      .then(({ data, error }) => {
+        if (error) console.error('shad_wishes load error:', error)
+        else setWishes(data ?? [])
+      })
   }
 
   useEffect(() => {

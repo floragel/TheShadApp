@@ -83,17 +83,15 @@ export default function App() {
       supabase.from('team_memberships').select('team_id').eq('user_id', user.id)
     ])
 
-    // Fetch all activities the user is a member of (no date filter — shows past + future)
+    // Fetch all activities the user is a member of OR created (no date filter)
     const joinedIds = m.data?.map(x => x.activity_id) ?? []
-    let ma: { data: any[] | null } = { data: null }
-    if (joinedIds.length > 0) {
-      ma = await supabase.from('activities')
-        .select('*, profiles!creator_id(display_name), activity_members(count)')
-        .in('id', joinedIds)
-        .order('starts_at')
-    } else {
-      ma = { data: [] }
-    }
+    // Build OR filter: either joined via activity_members or is the creator
+    const { data: maData } = await supabase
+      .from('activities')
+      .select('*, profiles!creator_id(display_name), activity_members(count)')
+      .or(`id.in.(${joinedIds.length > 0 ? joinedIds.join(',') : '00000000-0000-0000-0000-000000000000'}),creator_id.eq.${user.id}`)
+      .order('starts_at')
+    const ma = { data: maData }
 
     // Load new feature queries
     const [wl, pl, vt, ab] = await Promise.all([
@@ -535,12 +533,15 @@ export default function App() {
                   style={{ borderRadius: '12px', padding: '10px 18px', background: wishSent ? '#22c55e' : 'var(--gradient-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: wishSent ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}
                   onClick={async () => {
                     if (!supabase || !user || !wishMessage.trim()) return
-                    try {
-                      await supabase.from('shad_wishes').insert({ user_id: user.id, prompt: wishMessage.trim() })
+                    const { error: wishErr } = await supabase
+                      .from('shad_wishes')
+                      .insert({ user_id: user.id, prompt: wishMessage.trim() })
+                    if (wishErr) {
+                      console.error('Wish insert failed:', wishErr)
+                      alert(`Could not send message: ${wishErr.message}`)
+                    } else {
                       setWishSent(true)
                       setWishMessage('')
-                    } catch (err) {
-                      console.warn('Could not send message:', err)
                     }
                   }}
                 >
