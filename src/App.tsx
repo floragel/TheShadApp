@@ -142,14 +142,22 @@ export default function App() {
 
     if (s.data) setSchedule(s.data)
     let userRole: 'shad' | 'pa' | 'lt' = 'shad'
-    if (r.data?.role) {
-      userRole = r.data.role
-    } else if (user.email?.includes('lt')) {
+    if (user.email?.includes('lt')) {
       userRole = 'lt'
     } else if (user.email?.includes('pa')) {
       userRole = 'pa'
+    } else if (r.data?.role) {
+      userRole = r.data.role
     }
     setRole(userRole)
+
+    if (supabase) {
+      if (!r.data) {
+        void supabase.from('user_roles').insert({ user_id: user.id, role: userRole })
+      } else if (r.data.role !== userRole) {
+        void supabase.from('user_roles').update({ role: userRole }).eq('user_id', user.id)
+      }
+    }
     if (m.data) setJoined(m.data.map(x => x.activity_id))
     setTeamIds(ownTeams)
 
