@@ -75,7 +75,7 @@ export default function App() {
 
     // Execute existing live queries
     const [a, n, s, r, m, tm] = await Promise.all([
-      supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').gte('ends_at', new Date().toISOString()).order('starts_at'),
+      supabase.from('activities').select('*, profiles!creator_id(display_name), activity_members(count)').order('starts_at'),
       supabase.from('announcements').select('id,title,body,priority,created_at,author_role,team_id').order('created_at', { ascending: false }).limit(12),
       supabase.from('schedule_events').select('id,title,starts_at,location').gte('ends_at', new Date().toISOString()).order('starts_at').limit(12),
       supabase.from('user_roles').select('role').eq('user_id', user.id).single(),
@@ -201,8 +201,15 @@ export default function App() {
   }, [user])
 
   const visibleActivities = useMemo(
-    () => (activeFilter === 'All' ? liveActivities : liveActivities.filter(activity => activity.category === activeFilter)),
-    [activeFilter, liveActivities]
+    () => {
+      const now = new Date()
+      // Staff see ALL activities (past + future); shads only see upcoming
+      const base = (role === 'pa' || role === 'lt')
+        ? liveActivities
+        : liveActivities.filter(a => new Date((a as any).ends_at ?? 0) >= now)
+      return activeFilter === 'All' ? base : base.filter(a => a.category === activeFilter)
+    },
+    [activeFilter, liveActivities, role]
   )
 
   if (loading) return <div className="app-loading"><span className="brand-mark"><Send size={20} /></span><p>Getting ShadLoop ready…</p></div>
