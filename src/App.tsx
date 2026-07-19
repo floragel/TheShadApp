@@ -122,7 +122,8 @@ export default function App() {
         attendees: x.activity_members?.[0]?.count ?? 0,
         capacity: x.capacity,
         accent: '#d8c5ff',
-        teamId: x.team_id
+        teamId: x.team_id,
+        teamIds: x.team_ids
       })))
     }
 
@@ -587,10 +588,10 @@ export default function App() {
                 </div>
               </div>
 
-              {teamIds.length > 0 && liveActivities.some(a => a.teamId && teamIds.includes(a.teamId)) && (
+              {teamIds.length > 0 && liveActivities.some(a => (a.teamId && teamIds.includes(a.teamId)) || (a.teamIds && a.teamIds.some(tid => teamIds.includes(tid)))) && (
                 <div className="team-now">
                   <p className="eyebrow">Your teams right now</p>
-                  {liveActivities.filter(a => a.teamId && teamIds.includes(a.teamId)).map(a => (
+                  {liveActivities.filter(a => (a.teamId && teamIds.includes(a.teamId)) || (a.teamIds && a.teamIds.some(tid => teamIds.includes(tid)))).map(a => (
                     <span key={a.id}><strong>{a.title}</strong> · {a.location} · {a.time}</span>
                   ))}
                 </div>

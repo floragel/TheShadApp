@@ -4,7 +4,7 @@ import { Megaphone, X, CalendarPlus, QrCode, ClipboardList, BarChart3, Users, Sh
 import { supabase } from '../lib/supabase'
 
 export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:string; role:'pa'|'lt'; onClose:()=>void; onSaved:()=>void }) {
-  const [tab, setTab] = useState<'schedule' | 'announcement' | 'qr' | 'absences' | 'polls' | 'waiting' | 'teams' | 'roles' | 'studentTeams' | 'wishes'>('schedule')
+  const [tab, setTab] = useState<'schedule' | 'announcement' | 'qr' | 'absences' | 'polls' | 'waiting' | 'studentTeams' | 'wishes' | 'teamRosters' | 'teams' | 'roles'>('schedule')
   const [message, setMessage] = useState('')
   const [teams, setTeams] = useState<any[]>([])
   const [pas, setPas] = useState<any[]>([])
@@ -12,6 +12,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
   const [activities, setActivities] = useState<any[]>([])
   const [scheduleEvents, setScheduleEvents] = useState<any[]>([])
   const [wishes, setWishes] = useState<any[]>([])
+  const [memberships, setMemberships] = useState<any[]>([])
   
   // Specific data for features
   const [absences, setAbsences] = useState<any[]>([])
@@ -28,19 +29,21 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
     
     // Load general requirements
     void Promise.all([
-      supabase.from('teams').select('id,name,kind').order('kind').order('name'),
+      supabase.from('teams').select('id,name,color,kind').order('kind').order('name'),
       supabase.from('user_roles').select('user_id,profiles(display_name)').eq('role', 'pa'),
       supabase.from('profiles').select('id,display_name').order('display_name'),
       supabase.from('activities').select('id,title,capacity').gte('ends_at', new Date().toISOString()),
       supabase.from('schedule_events').select('*').order('starts_at'),
-      supabase.from('shad_wishes').select('*, profiles:user_id(display_name)').order('created_at', { ascending: false }).limit(40)
-    ]).then(([t, p, pr, a, se, w]) => {
+      supabase.from('shad_wishes').select('*, profiles:user_id(display_name)').order('created_at', { ascending: false }).limit(40),
+      supabase.from('team_memberships').select('*, profiles:user_id(display_name)')
+    ]).then(([t, p, pr, a, se, w, m]) => {
       setTeams(t.data ?? [])
       setPas(p.data ?? [])
       setProfiles(pr.data ?? [])
       setActivities(a.data ?? [])
       setScheduleEvents(se.data ?? [])
       setWishes(w.data ?? [])
+      setMemberships(m.data ?? [])
       if (a.data && a.data.length > 0 && !selectedActivity) {
         setSelectedActivity(a.data[0].id)
       }
@@ -65,6 +68,9 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
     } else if (tab === 'waiting') {
       void supabase.from('activities').select('id,title,capacity,activity_waiting_list(*,profiles:user_id(display_name))')
         .then(({ data }) => setWaitlists(data ?? []))
+    } else if (tab === 'teamRosters') {
+      void supabase.from('team_memberships').select('*, profiles:user_id(display_name)')
+        .then(({ data }) => setMemberships(data ?? []))
     }
   }, [tab])
 
@@ -206,6 +212,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
       setMessage('Student teams cleared.')
     }
     onSaved()
+    loadData()
   }
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -240,7 +247,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
 
   return (
     <div className="panel-backdrop">
-      <aside className="profile-panel staff-panel" style={{ width: 'min(100%, 650px)' }}>
+      <aside className="profile-panel staff-panel" style={{ width: 'min(100%, 1150px)' }}>
         <div className="panel-header">
           <div>
             <p className="eyebrow">PA / LT Dashboard</p>
@@ -250,7 +257,7 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
         </div>
 
         {/* Dashboard Navigation Tabs */}
-        <div className="auth-tabs" style={{ gap: '4px', marginBottom: '16px', overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap', padding: '4px' }}>
+        <div className="auth-tabs" style={{ gap: '4px', marginBottom: '22px', overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap', padding: '4px' }}>
           <button className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}><CalendarPlus size={15} /> Agenda</button>
           <button className={tab === 'announcement' ? 'active' : ''} onClick={() => setTab('announcement')}><Megaphone size={15} /> News</button>
           <button className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}><QrCode size={15} /> QR Attendance</button>
@@ -258,12 +265,78 @@ export function StaffDashboard({ userId, role, onClose, onSaved }: { userId:stri
           <button className={tab === 'polls' ? 'active' : ''} onClick={() => setTab('polls')}><BarChart3 size={15} /> Surveys</button>
           <button className={tab === 'waiting' ? 'active' : ''} onClick={() => setTab('waiting')}><Users size={15} /> Waitlist</button>
           <button className={tab === 'studentTeams' ? 'active' : ''} onClick={() => setTab('studentTeams')}><Users size={15} /> Assign Teams</button>
+          <button className={tab === 'teamRosters' ? 'active' : ''} onClick={() => setTab('teamRosters')}><Users size={15} /> Team Rosters</button>
           <button className={tab === 'wishes' ? 'active' : ''} onClick={() => setTab('wishes')}><ClipboardList size={15} /> Student Wishes</button>
           {role === 'lt' && <button className={tab === 'teams' ? 'active' : ''} onClick={() => setTab('teams')}><ShieldAlert size={15} /> PA Teams</button>}
           {role === 'lt' && <button className={tab === 'roles' ? 'active' : ''} onClick={() => setTab('roles')}><ShieldAlert size={15} /> Roles</button>}
         </div>
 
         {/* Tab Contents */}
+        {tab === 'teamRosters' && (
+          <div className="staff-form" style={{ display: 'grid', gap: '20px' }}>
+            <h3>Cohort Team Rosters</h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--muted)', margin: '0 0 10px' }}>
+              Rosters and assignments of all student participants.
+            </p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div>
+                <h4 style={{ borderBottom: '2px solid var(--purple-light)', paddingBottom: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>🏠 House Teams</h4>
+                <div style={{ display: 'grid', gap: '14px', maxHeight: '480px', overflowY: 'auto' }}>
+                  {teams.filter(t => t.kind === 'house').map(t => {
+                    const members = memberships.filter(m => m.team_id === t.id)
+                    return (
+                      <div key={t.id} style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <strong style={{ fontSize: '15.5px', color: 'var(--ink)' }}>{t.name}</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--purple-dark)', fontWeight: 800, background: 'var(--purple-light)', padding: '4px 10px', borderRadius: '999px' }}>
+                            {members.length} SHADs
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {members.map(m => (
+                            <span key={m.user_id} style={{ fontSize: '12px', background: 'white', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', color: 'var(--ink)', fontWeight: 500 }}>
+                              {m.profiles?.display_name || 'Participant'}
+                            </span>
+                          ))}
+                          {members.length === 0 && <span style={{ fontSize: '12px', color: 'var(--muted)', fontStyle: 'italic' }}>No students assigned yet.</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              
+              <div>
+                <h4 style={{ borderBottom: '2px solid var(--purple-light)', paddingBottom: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>🎨 Design Teams</h4>
+                <div style={{ display: 'grid', gap: '14px', maxHeight: '480px', overflowY: 'auto' }}>
+                  {teams.filter(t => t.kind === 'design').map(t => {
+                    const members = memberships.filter(m => m.team_id === t.id)
+                    return (
+                      <div key={t.id} style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <strong style={{ fontSize: '15.5px', color: 'var(--ink)' }}>{t.name}</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--purple-dark)', fontWeight: 800, background: 'var(--purple-light)', padding: '4px 10px', borderRadius: '999px' }}>
+                            {members.length} SHADs
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {members.map(m => (
+                            <span key={m.user_id} style={{ fontSize: '12px', background: 'white', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', color: 'var(--ink)', fontWeight: 500 }}>
+                              {m.profiles?.display_name || 'Participant'}
+                            </span>
+                          ))}
+                          {members.length === 0 && <span style={{ fontSize: '12px', color: 'var(--muted)', fontStyle: 'italic' }}>No students assigned yet.</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab === 'wishes' && (
           <div className="staff-form" style={{ display: 'grid', gap: '16px' }}>
             <h3>Student Wishes & AI Requests</h3>
