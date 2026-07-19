@@ -83,15 +83,22 @@ export default function App() {
       supabase.from('team_memberships').select('team_id').eq('user_id', user.id)
     ])
 
-    // Fetch all activities the user is a member of OR created (no date filter)
+    // Fetch all activities the user is a member of OR created (no date filter — two reliable queries merged)
     const joinedIds = m.data?.map(x => x.activity_id) ?? []
-    // Build OR filter: either joined via activity_members or is the creator
-    const { data: maData } = await supabase
-      .from('activities')
-      .select('*, profiles!creator_id(display_name), activity_members(count)')
-      .or(`id.in.(${joinedIds.length > 0 ? joinedIds.join(',') : '00000000-0000-0000-0000-000000000000'}),creator_id.eq.${user.id}`)
-      .order('starts_at')
-    const ma = { data: maData }
+    const [maByMember, maByCreator] = await Promise.all([
+      joinedIds.length > 0
+        ? supabase.from('activities').select('id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)').in('id', joinedIds)
+        : Promise.resolve({ data: [] }),
+      supabase.from('activities').select('id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)').eq('creator_id', user.id)
+    ])
+    // Merge and deduplicate
+    const seenIds = new Set<string>()
+    const mergedActivities: any[] = []
+    for (const row of [...(maByMember.data ?? []), ...(maByCreator.data ?? [])]) {
+      if (!seenIds.has(row.id)) { seenIds.add(row.id); mergedActivities.push(row) }
+    }
+    mergedActivities.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+    const ma = { data: mergedActivities }
 
     // Load new feature queries
     const [wl, pl, vt, ab] = await Promise.all([
@@ -445,35 +452,79 @@ export default function App() {
           <section className="plans-page">
             <p className="eyebrow">Your schedule</p>
             <h1>My <em>plans</em></h1>
-            <div className="plans-layout">
-              <div>
-                <h2>Activities you joined</h2>
-                <div className="activity-grid">
-                  {myActivities.map(a => (
-                    <ActivityCard 
-                      key={a.id} 
-                      activity={a} 
-                      joined 
-                      waiting={waitingList.some(w => w.activity_id === a.id && w.user_id === user.id)}
-                      onJoin={toggleJoin}
-                    />
-                  ))}
-                  {myActivities.length === 0 && <div className="empty-state">No joined activities yet.</div>}
+
+            {(() => {
+              // Merge activities + official schedule events into one timeline
+              type TItem = { id: string; title: string; time: Date; end: Date; location?: string; kind: 'activity' | 'official'; category?: string; host?: string }
+              const items: TItem[] = [
+                ...myActivities.map(a => ({
+                  id: a.id, title: a.title,
+                  time: new Date((a as any).starts_at ?? Date.now()),
+                  end: new Date((a as any).ends_at ?? Date.now()),
+                  location: a.location, kind: 'activity' as const,
+                  category: a.category, host: a.host
+                })),
+                ...schedule.map((e: any) => ({
+                  id: e.id, title: e.title,
+                  time: new Date(e.starts_at),
+                  end: new Date(e.ends_at ?? e.starts_at),
+                  location: e.location, kind: 'official' as const
+                }))
+              ].sort((a, b) => a.time.getTime() - b.time.getTime())
+
+              // Group by date
+              const byDay = new Map<string, TItem[]>()
+              for (const item of items) {
+                const key = item.time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
+                if (!byDay.has(key)) byDay.set(key, [])
+                byDay.get(key)!.push(item)
+              }
+
+              const catColor: Record<string, string> = { Active: '#a855f7', Food: '#f97316', Creative: '#ec4899', Chill: '#06b6d4' }
+
+              if (items.length === 0) return (
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                  <h3 style={{ color: 'var(--muted)', fontWeight: 600 }}>No activities yet</h3>
+                  <p style={{ color: 'var(--muted)' }}>Join activities from Discover or ask your PA/LT to create some!</p>
                 </div>
-              </div>
-              <div>
-                <h2>Official agenda</h2>
-                {schedule.map(e => (
-                  <article key={e.id} className="schedule-row">
-                    <time>{new Date(e.starts_at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</time>
-                    <div>
-                      <strong>{e.title}</strong>
-                      <span>{e.location}</span>
+              )
+
+              return (
+                <div className="timetable">
+                  {Array.from(byDay.entries()).map(([day, dayItems]) => (
+                    <div key={day} className="timetable-day">
+                      <div className="timetable-day-label">
+                        <span>{day}</span>
+                      </div>
+                      <div className="timetable-rows">
+                        {dayItems.map(item => {
+                          const color = item.kind === 'official' ? '#6366f1' : (catColor[item.category ?? ''] ?? '#7c3aed')
+                          const fmt = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          return (
+                            <div key={item.id} className="timetable-row" style={{ '--accent': color } as any}>
+                              <div className="timetable-time">
+                                <span>{fmt(item.time)}</span>
+                                <span className="timetable-end">{fmt(item.end)}</span>
+                              </div>
+                              <div className="timetable-dot" />
+                              <div className="timetable-content">
+                                <div className="timetable-tag" style={{ background: color + '20', color }}>
+                                  {item.kind === 'official' ? '📋 Official' : `${item.category ?? 'Activity'}`}
+                                </div>
+                                <strong className="timetable-title">{item.title}</strong>
+                                {item.location && <span className="timetable-loc">📍 {item.location}</span>}
+                                {item.host && item.kind === 'activity' && <span className="timetable-loc">👤 {item.host}</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
+              )
+            })()}
           </section>
         )}
 

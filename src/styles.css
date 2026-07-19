@@ -994,6 +994,93 @@ h2 { font-size: 32px; letter-spacing: -1.2px; font-weight: 800; }
 }
 
 /* ============================
+   Timetable (My Plans)
+   ============================ */
+.plans-page { padding: 40px max(5vw, 24px) 60px; max-width: 860px; margin: 0 auto; }
+.plans-page h1 { font: 800 clamp(32px, 5vw, 52px)/1 'Manrope', sans-serif; letter-spacing: -2px; margin: 6px 0 32px; }
+.plans-page h1 em { font-style: normal; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+.timetable { display: flex; flex-direction: column; gap: 32px; }
+
+.timetable-day { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 24px rgba(15,23,42,0.06); border: 1px solid var(--line); }
+
+.timetable-day-label {
+  padding: 14px 22px;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-bottom: 1px solid rgba(124,58,237,0.12);
+  font: 700 13px/1 'Manrope', sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple);
+}
+
+.timetable-rows { display: flex; flex-direction: column; }
+
+.timetable-row {
+  display: grid;
+  grid-template-columns: 68px 24px 1fr;
+  align-items: stretch;
+  gap: 0 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+  transition: background 0.18s;
+}
+.timetable-row:last-child { border-bottom: none; }
+.timetable-row:hover { background: #fafbff; }
+
+.timetable-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.timetable-time span:first-child { font: 700 14px/1 'DM Sans', sans-serif; color: var(--ink); }
+.timetable-end { font-size: 11px; color: var(--muted); }
+
+.timetable-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent, var(--purple));
+  margin-top: 4px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--purple)) 20%, transparent);
+  flex-shrink: 0;
+  position: relative;
+}
+.timetable-dot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  width: 2px;
+  height: calc(100% + 16px);
+  background: linear-gradient(to bottom, var(--accent, var(--purple)), transparent);
+  opacity: 0.2;
+}
+.timetable-row:last-child .timetable-dot::after { display: none; }
+
+.timetable-content { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+
+.timetable-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font: 700 11px/1.6 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  width: fit-content;
+  text-transform: uppercase;
+}
+
+.timetable-title { font: 700 16px/1.3 'DM Sans', sans-serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timetable-loc { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============================
    Proportional Fluid Scaling
    All rem units scale with viewport.
    Base: 16px at 1300px wide → scales up to 20px at 1800px, down to 13px at 900px
