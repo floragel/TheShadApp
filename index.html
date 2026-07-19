@@ -1,29 +1,75 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6d3df5" />
-    <meta name="description" content="Find your people and make the most of free time at SHAD." />
-    <link rel="icon" type="image/png" href="logo.png" />
-    <title>ShadLoop — SHAD free time, sorted</title>
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (var i = 0; i < registrations.length; i++) {
-            registrations[i].unregister().then(function(success) {
-              if (success) {
-                console.log('Successfully unregistered stale service worker.');
-                window.location.reload();
-              }
-            });
-          }
-        });
-      }
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6d3df5" />
+  <meta name="description" content="Find your people and make the most of free time at SHAD." />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <title>ShadLoop — SHAD free time, sorted</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister().then(function (success) {
+            if (success) {
+              console.log('Successfully unregistered stale service worker.');
+              window.location.reload();
+            }
+          });
+        }
+      });
+    }
+  </script>
+  <style>
+    /* Cible le bouton dans la zone de texte pour le rendre propre */
+    #root textarea+button,
+    #root form button,
+    #root button:has(text) {
+      position: absolute !important;
+      bottom: 12px !important;
+      right: 12px !important;
+      height: auto !important;
+      width: auto !important;
+      padding: 8px 16px !important;
+      border-radius: 9999px !important;
+      /* Bouton arrondi moderne */
+      background-color: #6d3df5 !important;
+      /* Violet assorti à ton thème */
+      color: white !important;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      white-space: nowrap !important;
+      /* Force le texte sur une seule ligne */
+      border: none !important;
+      box-shadow: 0 2px 8px rgba(109, 61, 245, 0.3) !important;
+      cursor: pointer !important;
+      transition: transform 0.1s ease !important;
+    }
+
+    #root button:active {
+      transform: scale(0.95) !important;
+    }
+
+    /* Force le conteneur de la zone de texte à s'adapter */
+    #root div:has(> textarea) {
+      position: relative !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #root textarea {
+      padding-bottom: 50px !important;
+      /* Laisse de la place pour le bouton */
+      resize: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
