@@ -87,9 +87,10 @@ export default function App() {
     const earlyRole = user.email?.includes('lt') ? 'lt' : user.email?.includes('pa') ? 'pa' : (r.data?.role ?? 'shad')
     const isStaff = earlyRole === 'pa' || earlyRole === 'lt'
 
-    // Staff see ALL activities; shads see only their joined/created ones (no date filter)
+    // Staff see ALL activities; shads see only their joined/created/team-assigned ones
     let mergedActivities: any[] = []
     const actSelect = 'id, title, description, category, location, starts_at, ends_at, capacity, team_id, team_ids, profiles!creator_id(display_name), activity_members(count)'
+    const userTeamIds = tm.data?.map(x => x.team_id) ?? []
     if (isStaff) {
       const { data: allActs } = await supabase.from('activities').select(actSelect).order('starts_at')
       mergedActivities = allActs ?? []
@@ -104,6 +105,18 @@ export default function App() {
       const seenIds = new Set<string>()
       for (const row of [...(maByMember.data ?? []), ...(maByCreator.data ?? [])]) {
         if (!seenIds.has(row.id)) { seenIds.add(row.id); mergedActivities.push(row) }
+      }
+      // Also include activities assigned to any of the user's teams
+      if (userTeamIds.length > 0) {
+        const { data: teamActs } = await supabase.from('activities').select(actSelect)
+        for (const row of (teamActs ?? [])) {
+          if (seenIds.has(row.id)) continue
+          const rowTeamIds: string[] = row.team_ids ?? (row.team_id ? [row.team_id] : [])
+          if (rowTeamIds.some(tid => userTeamIds.includes(tid))) {
+            seenIds.add(row.id)
+            mergedActivities.push(row)
+          }
+        }
       }
     }
     mergedActivities.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
@@ -127,6 +140,8 @@ export default function App() {
         category: x.category,
         emoji: x.category === 'Active' ? '🏐' : x.category === 'Food' ? '🧋' : x.category === 'Creative' ? '🎨' : '🃏',
         time: new Date(x.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        starts_at: x.starts_at,
+        ends_at: x.ends_at,
         location: x.location,
         host: x.profiles?.display_name ?? 'Staff',
         attendees: x.activity_members?.[0]?.count ?? 0,
@@ -179,6 +194,8 @@ export default function App() {
         category: x.category,
         emoji: x.category === 'Active' ? '🏐' : x.category === 'Food' ? '🧋' : x.category === 'Creative' ? '🎨' : '🃏',
         time: new Date(x.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        starts_at: x.starts_at,  // keep raw for timetable
+        ends_at: x.ends_at,       // keep raw for timetable
         location: x.location,
         host: x.profiles?.display_name ?? 'Staff',
         attendees: x.activity_members?.[0]?.count ?? 0,
